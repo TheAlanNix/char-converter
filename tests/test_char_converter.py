@@ -33,6 +33,22 @@ class TestCharConverter(unittest.TestCase):
         self.assertIn('’'.encode('utf-8'), content)
         os.remove(tmp_path)
 
+    def test_replace_0x92_in_file_with_suffix(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+            tmp.write(b"Hello\x92World")
+            tmp_path = tmp.name
+            base, ext = os.path.splitext(tmp_path)
+            new_path = f"{base}_utf8{ext}"
+
+        count = replace_0x92_in_file(tmp_path, suffix="_utf8")
+        self.assertEqual(count, 1)
+        with open(new_path, 'rb') as f:
+            content = f.read()
+        self.assertNotIn(b'\x92', content)
+        self.assertIn('’'.encode('utf-8'), content)
+        os.remove(tmp_path)
+        os.remove(new_path)
+
     def test_process_file_dry_run_prints(self):
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"Hello\x92World\x92!")
@@ -42,6 +58,17 @@ class TestCharConverter(unittest.TestCase):
             process_file(tmp_path, write=False)
             output = fake_out.getvalue()
         self.assertIn("Found 2 occurrence(s) in:", output)
+        os.remove(tmp_path)
+
+    def test_process_file_debug_prints(self):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"Hello\x92World")
+            tmp_path = tmp.name
+
+        with patch('sys.stdout', new=io.StringIO()) as fake_out:
+            process_file(tmp_path, write=False, debug=True)
+            output = fake_out.getvalue()
+        self.assertIn(f"Scanning: {tmp_path}", output)
         os.remove(tmp_path)
 
 
